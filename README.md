@@ -5,6 +5,12 @@ Detect the artificial rNMPs captured by _ribose-seq_ and Ribose-Map.
 Some fragments after restriction enzyme digestion don't contain the rNMP. However, they still remains after the whole _ribose-seq_ and Ribose-Map protocol due the imperfect digestion of T5 nuclease. That makes up a part of background noise. Some of them may have an additional dAMP at the end because of the dA-tailing step. 
 This software is designed for background noise detection and subtraction if needed. It counts the number of the rNMPs incorporated in restriction enzyme cut site with or without dA tailing, calculates the ratio of them and subtracts them from the BED file.
 
+## Dependency
+Following softwares are needed:
+- bedtools
+- Linux build-in __grep__ and __wc__
+This software only requires Python3 standard libraries.
+
 ## Usage
 __subtraction.py__ is the main script to run the subtraction.
 
