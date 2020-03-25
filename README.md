@@ -9,6 +9,7 @@ This software is designed for background noise detection and subtraction if need
 Following softwares are needed:
 - bedtools
 - Linux build-in __grep__ and __wc__
+
 This software only requires Python3 standard libraries.
 
 ## Usage
