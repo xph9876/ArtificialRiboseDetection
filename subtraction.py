@@ -22,7 +22,7 @@ parser.add_argument('-o', type=argparse.FileType('w'), default=sys.stdout, help=
 parser.add_argument('--subtracted_output', default='', help='Folder to output subtracted files, default=same to bed')
 parser.add_argument('--ns', action='store_true', help='Do not do subtraction')
 parser.add_argument('--bed', default='.', help='Folder of bed files, default=current folder')
-parser.add_argument('--mitochondrial_name', default='chrM', help='Name of mitochondrial DNA in genome file, default=chrM')
+parser.add_argument('--special', type=str, nargs='+', default=['chrM'], help='Special sequences to be calculated, default=chrM')
 parser.add_argument('--RElist', type=argparse.FileType('r'), default='res_all.list', help='pool of RElist, Name\tPattern\tPos, default=res_all.list')
 parser.add_argument('--genome', default=None, help='Folder of genome, provide if needed')
 parser.add_argument('--threads', type=int, default=1, help='Number of threads')
@@ -42,7 +42,7 @@ for k in sorted(lib_info.keys()):
     print(k + '\t'+','.join(lib_info[k][1]))
 print('Bed folder : {}'.format(args.bed))
 print('Raw reads folder : {}'.format(args.raw_reads))
-print('Name of mitochondrion : {}'.format(args.mitochondrial_name))
+print('Special sequences : {}'.format(', '.join(args.special)))
 
 # set data
 # data[lib][noda/da][re] = 1
@@ -64,7 +64,7 @@ print('Job queue set!')
 threads = []
 for idx in range(args.threads):
     thread = SubtractionThread(idx, workQueue, data, residue_da, \
-            args.raw_reads, args.bed, args.subtracted_output, args.mitochondrial_name, qLock)
+            args.raw_reads, args.bed, args.subtracted_output, args.special, qLock)
     thread.start()
     threads.append(thread)
 print('All threads set! Total threads: {:d}'.format(len(threads)))
@@ -89,10 +89,11 @@ for k, v in re_all.items():
     args.o.write('Library\tSpecies\tRE\tnoda_all\tda_all')
     for i in v:
         args.o.write('\t{}_noda\t{}_da'.format(i,i))
-    args.o.write('\tLibrary\tSpecies\tRE\tnoda_mito\tda_mito')
-    for i in v:
-        args.o.write('\t{}_noda\t{}_da'.format(i,i))
-    args.o.write('\tLibrary\tSpecies\tRE\tnoda_nucl\tda_nucl')
+    for sseq in args.special:
+        args.o.write(f'\tLibrary\tSpecies\tRE\tnoda_{sseq}\tda_{sseq}')
+        for i in v:
+            args.o.write('\t{}_noda\t{}_da'.format(i,i))
+    args.o.write('\tLibrary\tSpecies\tRE\tnoda_nuc\tda_nuc')
     for i in v:
         args.o.write('\t{}_noda\t{}_da'.format(i,i))
     args.o.write('\n')
@@ -100,15 +101,37 @@ for k, v in re_all.items():
 # data
 for fs in lib_info.keys():
     if lib_info[fs][0] == k:
-        for da_chr, noda_chr, total_chr in ((data[fs]['da'], data[fs]['noda'], data[fs]['total']['total']), \
-                (data[fs]['da_m'], data[fs]['noda_m'], data[fs]['total']['total_m']),\
-                (data[fs]['da_n'], data[fs]['noda_n'], data[fs]['total']['total_n'])):
+        # total
+        da_chr = data[fs]['da']
+        noda_chr = data[fs]['noda']
+        total_chr = data[fs]['total']['total']
+        if total_chr == 0:
+            total_chr = np.nan
+        args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + '\t{:f}\t{:f}'.format(noda_chr['total']/total_chr,da_chr['total']/total_chr))
+        for enzyme in v:
+            args.o.write('\t{:f}\t{:f}'.format(noda_chr[enzyme]/total_chr, da_chr[enzyme]/total_chr))
+        args.o.write('\t')
+        # specs
+        for sseq in args.special:
+            da_chr = data[fs]['da_'+sseq]
+            noda_chr = data[fs]['noda_'+sseq]
+            total_chr = data[fs]['total']['total_'+sseq]
             if total_chr == 0:
                 total_chr = np.nan
             args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + '\t{:f}\t{:f}'.format(noda_chr['total']/total_chr,da_chr['total']/total_chr))
             for enzyme in v:
                 args.o.write('\t{:f}\t{:f}'.format(noda_chr[enzyme]/total_chr, da_chr[enzyme]/total_chr))
             args.o.write('\t')
+        # nuc
+        da_chr = data[fs]['da_n']
+        noda_chr = data[fs]['noda_n']
+        total_chr = data[fs]['total']['total_n']
+        if total_chr == 0:
+            total_chr = np.nan
+        args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + '\t{:f}\t{:f}'.format(noda_chr['total']/total_chr,da_chr['total']/total_chr))
+        for enzyme in v:
+            args.o.write('\t{:f}\t{:f}'.format(noda_chr[enzyme]/total_chr, da_chr[enzyme]/total_chr))
+        args.o.write('\t')
         args.o.write('\n')
 
 print('Done!')

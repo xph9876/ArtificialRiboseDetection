@@ -46,77 +46,80 @@ def count_da(names, pattern, fr):
 
 
 # total
-def calc_total(data, fs, folder, mitochondrial_name):
+def calc_total(data, fs, folder, spec_seqs):
     # get total number
-    lines = subprocess.Popen(['grep', mitochondrial_name, folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
-    total_m = int(subprocess.run(['wc', '-l'], stdin=lines.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
+    # special seqs
+    for sseq in spec_seqs:
+        lines = subprocess.Popen(['grep', sseq, folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
+        total_m = int(subprocess.run(['wc', '-l'], stdin=lines.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
+        data[fs]['total']['total_'+sseq] = total_m
+    # nuclear
     total = int(subprocess.run(['wc', '-l', folder+'/'+fs + '.bed'], stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split(' ')[0])
-    total_n = total - total_m
+    total_n = total - sum([data[fs]['total']['total'+sseq] for sseq in spec_seqs])
     data[fs]['total']['total'] = total
     data[fs]['total']['total_n'] = total_n
-    data[fs]['total']['total_m'] = total_m
 
 
-# noda
-def calc_noda(data, fs, species, res, folder, mitochondrial_name):
+# no da-tailing
+def calc_noda(data, fs, species, res, folder, spec_seqs):
     # noda, use bedtools intersect and then count lines
     noda = data[fs]['noda']
-    noda_m = data[fs]['noda_m']
-    noda_n = data[fs]['noda_n']
     for enzyme in res:
         inter = subprocess.Popen(['bedtools', 'intersect', '-a', folder+'/'+fs + '.bed', '-b', folder+'/'+'{}_{}_noda.bed'.format(species, enzyme),'-s', '-nonamecheck'],stdout=subprocess.PIPE)
         noda[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
-
-        # noda, split mitochondria
-        chrm = subprocess.Popen(['grep', mitochondrial_name, folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
-        inter_m = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_noda.bed'.format(species, enzyme), '-s', '-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
-        noda_m[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter_m.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
-        noda_n[enzyme] = noda[enzyme] - noda_m[enzyme]
+        # noda, split special
+        for sseq in spec_seqs:
+            noda_m = data[fs]['noda_'+sseq]
+            chrm = subprocess.Popen(['grep', sseq, folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
+            inter_m = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_noda.bed'.format(species, enzyme), '-s', '-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
+            noda_m[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter_m.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
+        # nuclear seqs
+        noda_n = data[fs]['noda_n']
+        noda_n[enzyme] = noda[enzyme] - sum([data[fs]['noda+'+sseq][enzyme] for sseq in spec_seqs])
     # total noda
     noda['total'] = sum([ noda[i] for i in res])
-    noda_m['total'] = sum([noda_m[i] for i in res])
+    for sseq in spec_seqs:
+        noda_m = data[fs]['noda_'+sseq]
+        noda_m['total'] = sum([noda_m[i] for i in res])
     noda_n['total'] = sum([noda_n[i] for i in res])
 
 
-# da
-def calc_da(data, fs, species, res, residue_da, rawreads, folder, mitochondrial_name):
+# da-tailing
+def calc_da(data, fs, species, res, residue_da, rawreads, folder, spec_seqs):
     # da
     da = data[fs]['da']
-    da_m = data[fs]['da_m']
     da_n = data[fs]['da_n']
     for enzyme in res:
-
         # get read names for da
         inter = subprocess.Popen(['bedtools', 'intersect', '-a', folder+'/'+fs + '.bed', '-b', folder+'/'+'{}_{}_da.bed'.format(species, enzyme), '-s','-nonamecheck'],stdout=subprocess.PIPE)
         name_l= subprocess.run(['cut', '-f', '4'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split('\n')
-
         names = {}
         # remove adapter information
         for i in range(len(name_l)):
             names[name_l[i].split('_')[0]] = 1
-
         # check data
         with open(rawreads + '/{}.fq'.format(fs), 'r') as fr:
             da[enzyme] = count_da(names, residue_da[enzyme], fr)
-
         # da, mitochondria
-        chrm = subprocess.Popen(['grep', mitochondrial_name, folder+'/'+ fs + '.bed'], stdout=subprocess.PIPE)
-        inter = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_da.bed'.format(species, enzyme), '-s','-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
-        name_l= subprocess.run(['cut', '-f', '4'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split('\n')
-
-        # remove adapter information
-        names = {}
-        for i in range(len(name_l)):
-            names[name_l[i].split('_')[0]] = 1
-
-        # check data
-        with open(rawreads + '/{}.fq'.format(fs), 'r') as fr:
-            da_m[enzyme] = count_da(names, residue_da[enzyme], fr)
-            da_n[enzyme] = da[enzyme] - da_m[enzyme]
-
+        for sseq in spec_seqs:
+            da_m = data[fs]['da_'+sseq]
+            chrm = subprocess.Popen(['grep', sseq, folder+'/'+ fs + '.bed'], stdout=subprocess.PIPE)
+            inter = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_da.bed'.format(species, enzyme), '-s','-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
+            name_l= subprocess.run(['cut', '-f', '4'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split('\n')
+            # remove adapter information
+            names = {}
+            for i in range(len(name_l)):
+                names[name_l[i].split('_')[0]] = 1
+            # check data
+            with open(rawreads + '/{}.fq'.format(fs), 'r') as fr:
+                fr.seek(0)
+                da_m[enzyme] = count_da(names, residue_da[enzyme], fr)
+        da_n[enzyme] = da[enzyme] - sum([data[fs]['da_'+sseq][enzyme] for sseq in spec_seqs])
     # total da
     da['total'] = sum([da[i] for i in res])
-    da_m['total'] = sum([da_m[i] for i in res])
+    for sseq in spec_seqs:
+        da_m = data[fs]['da_'+sseq]
+        da_m['total'] = sum([da_m[i] for i in res])
     da_n['total'] = sum([da_n[i] for i in res])
 
 

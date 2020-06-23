@@ -28,8 +28,8 @@ Parameters:
 1. __--subtracted_output SUBTRACTED_OUTPUT__                     Folder to output subtracted BED files, default = same to __bed__
 1. __--ns__                  Do not do subtraction, calculation only.
 1.  __--bed BED__             Folder of BED files, default = current folder.
-1.  __--mitochondrial_name MITOCHONDRIAL_NAME__
-                        Name of mitochondrial DNA in genome file, default = chrM
+1.  __--special S [ S ...] __
+                        Name of special chromosomes in genome file, which is calculated separately and excluded from nuclear DNA. default = [chrM]
 1.  __--RElist RELIST__       Pool of RElist, default = res_all.list. This list have 3 columns.
     1. Name of the restriction enzyme.
     1. Recognition pattern of the restriction enzyme. Degraded bases are supported.
