@@ -55,7 +55,7 @@ def calc_total(data, fs, folder, spec_seqs):
         data[fs]['total']['total_'+sseq] = total_m
     # nuclear
     total = int(subprocess.run(['wc', '-l', folder+'/'+fs + '.bed'], stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split(' ')[0])
-    total_n = total - sum([data[fs]['total']['total'+sseq] for sseq in spec_seqs])
+    total_n = total - sum([data[fs]['total']['total_'+sseq] for sseq in spec_seqs])
     data[fs]['total']['total'] = total
     data[fs]['total']['total_n'] = total_n
 
@@ -75,7 +75,7 @@ def calc_noda(data, fs, species, res, folder, spec_seqs):
             noda_m[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter_m.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
         # nuclear seqs
         noda_n = data[fs]['noda_n']
-        noda_n[enzyme] = noda[enzyme] - sum([data[fs]['noda+'+sseq][enzyme] for sseq in spec_seqs])
+        noda_n[enzyme] = noda[enzyme] - sum([data[fs]['noda_+'+sseq][enzyme] for sseq in spec_seqs])
     # total noda
     noda['total'] = sum([ noda[i] for i in res])
     for sseq in spec_seqs:
