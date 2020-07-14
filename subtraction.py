@@ -86,14 +86,14 @@ print('Calculation finished!')
 # header
 for k, v in re_all.items():
      # output header
-    args.o.write('Library\tSpecies\tRE\tnoda_all\tda_all')
+    args.o.write('Library\tSpecies\tRE\tTotal\tnoda_all\tda_all')
     for i in v:
         args.o.write('\t{}_noda\t{}_da'.format(i,i))
     for sseq in args.special:
-        args.o.write(f'\tLibrary\tSpecies\tRE\tnoda_{sseq}\tda_{sseq}')
+        args.o.write(f'\tLibrary\tSpecies\tRE\tTotal\tnoda_{sseq}\tda_{sseq}')
         for i in v:
             args.o.write('\t{}_noda\t{}_da'.format(i,i))
-    args.o.write('\tLibrary\tSpecies\tRE\tnoda_nuc\tda_nuc')
+    args.o.write('\tLibrary\tSpecies\tRE\tTotal\tnoda_nuc\tda_nuc')
     for i in v:
         args.o.write('\t{}_noda\t{}_da'.format(i,i))
     args.o.write('\n')
@@ -107,7 +107,9 @@ for fs in lib_info.keys():
         total_chr = data[fs]['total']['total']
         if total_chr == 0:
             total_chr = np.nan
-        args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + '\t{:f}\t{:f}'.format(noda_chr['total']/total_chr,da_chr['total']/total_chr))
+        args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + \
+                '\t{:f}\t{:f}\t{:f}'.format((noda_chr['total'] + da_chr['total'])/total_chr,\
+                noda_chr['total']/total_chr,da_chr['total']/total_chr))
         for enzyme in v:
             args.o.write('\t{:f}\t{:f}'.format(noda_chr[enzyme]/total_chr, da_chr[enzyme]/total_chr))
         args.o.write('\t')
@@ -118,7 +120,9 @@ for fs in lib_info.keys():
             total_chr = data[fs]['total']['total_'+sseq]
             if total_chr == 0:
                 total_chr = np.nan
-            args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + '\t{:f}\t{:f}'.format(noda_chr['total']/total_chr,da_chr['total']/total_chr))
+            args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + \
+                    '\t{:f}\t{:f}\t{:f}'.format((noda_chr['total'] + da_chr['total'])/total_chr,\
+                    noda_chr['total']/total_chr,da_chr['total']/total_chr))
             for enzyme in v:
                 args.o.write('\t{:f}\t{:f}'.format(noda_chr[enzyme]/total_chr, da_chr[enzyme]/total_chr))
             args.o.write('\t')
@@ -128,7 +132,9 @@ for fs in lib_info.keys():
         total_chr = data[fs]['total']['total_n']
         if total_chr == 0:
             total_chr = np.nan
-        args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + '\t{:f}\t{:f}'.format(noda_chr['total']/total_chr,da_chr['total']/total_chr))
+        args.o.write('{}\t{}\t'.format(fs, k) + ','.join(lib_info[fs][1]) + \
+                '\t{:f}\t{:f}\t{:f}'.format((noda_chr['total'] + da_chr['total'])/total_chr,\
+                noda_chr['total']/total_chr,da_chr['total']/total_chr))
         for enzyme in v:
             args.o.write('\t{:f}\t{:f}'.format(noda_chr[enzyme]/total_chr, da_chr[enzyme]/total_chr))
         args.o.write('\t')

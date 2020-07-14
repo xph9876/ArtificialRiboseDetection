@@ -50,7 +50,7 @@ def calc_total(data, fs, folder, spec_seqs):
     # get total number
     # special seqs
     for sseq in spec_seqs:
-        lines = subprocess.Popen(['grep', sseq, folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
+        lines = subprocess.Popen(['grep', sseq, '-w', folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
         total_m = int(subprocess.run(['wc', '-l'], stdin=lines.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
         data[fs]['total']['total_'+sseq] = total_m
     # nuclear
@@ -64,18 +64,18 @@ def calc_total(data, fs, folder, spec_seqs):
 def calc_noda(data, fs, species, res, folder, spec_seqs):
     # noda, use bedtools intersect and then count lines
     noda = data[fs]['noda']
+    noda_n = data[fs]['noda_n']
     for enzyme in res:
         inter = subprocess.Popen(['bedtools', 'intersect', '-a', folder+'/'+fs + '.bed', '-b', folder+'/'+'{}_{}_noda.bed'.format(species, enzyme),'-s', '-nonamecheck'],stdout=subprocess.PIPE)
         noda[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
         # noda, split special
         for sseq in spec_seqs:
             noda_m = data[fs]['noda_'+sseq]
-            chrm = subprocess.Popen(['grep', sseq, folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
+            chrm = subprocess.Popen(['grep', sseq, '-w', folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
             inter_m = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_noda.bed'.format(species, enzyme), '-s', '-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
             noda_m[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter_m.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
         # nuclear seqs
-        noda_n = data[fs]['noda_n']
-        noda_n[enzyme] = noda[enzyme] - sum([data[fs]['noda_+'+sseq][enzyme] for sseq in spec_seqs])
+        noda_n[enzyme] = noda[enzyme] - sum([data[fs]['noda_'+sseq][enzyme] for sseq in spec_seqs])
     # total noda
     noda['total'] = sum([ noda[i] for i in res])
     for sseq in spec_seqs:
@@ -103,7 +103,7 @@ def calc_da(data, fs, species, res, residue_da, rawreads, folder, spec_seqs):
         # da, mitochondria
         for sseq in spec_seqs:
             da_m = data[fs]['da_'+sseq]
-            chrm = subprocess.Popen(['grep', sseq, folder+'/'+ fs + '.bed'], stdout=subprocess.PIPE)
+            chrm = subprocess.Popen(['grep', sseq, '-w', folder+'/'+ fs + '.bed'], stdout=subprocess.PIPE)
             inter = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_da.bed'.format(species, enzyme), '-s','-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
             name_l= subprocess.run(['cut', '-f', '4'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split('\n')
             # remove adapter information
