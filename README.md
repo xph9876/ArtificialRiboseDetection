@@ -5,6 +5,9 @@ Detect the artificial rNMPs captured by _ribose-seq_ and Ribose-Map.
 Some fragments after restriction enzyme digestion don't contain the rNMP. However, they still remains after the whole _ribose-seq_ and Ribose-Map protocol due the imperfect digestion of T5 nuclease. That makes up a part of background noise. Some of them may have an additional dAMP at the end because of the dA-tailing step. 
 This software is designed for background noise detection and subtraction if needed. It counts the number of the rNMPs incorporated in restriction enzyme cut site with or without dA tailing, calculates the ratio of them and subtracts them from the BED file.
 
+## Citation
+Balachander, S., Gombolay, A. L., Yang, T., Xu, P., Newnam, G., Keskin, H., El-Sayed, W., Bryksin, A. V., Tao, S., Bowen, N. E., Schinazi, R. F., Kim, B., Koh, K. D., Vannberg, F. O., & Storici, F. (2020). Ribonucleotide incorporation in yeast genomic DNA shows preference for cytosine and guanosine preceded by deoxyadenosine. _Nature communications, 11_(1), 2447. https://doi.org/10.1038/s41467-020-16152-5
+
 ## Dependency
 Following softwares are needed:
 - bedtools
@@ -43,6 +46,4 @@ This software is under GNU GPL v3.0 license.
 
 ## Contact
 If you have any question, please contact me at <pxu64@gatech.edu>.
-
-Please give me a star if you like it!
 
