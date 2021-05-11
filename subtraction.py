@@ -74,7 +74,7 @@ processed = [False] * len(threads)
 while not all(processed):
     for t in range(args.threads):
         if not processed[t]:
-            if not threads[t].isAlive():
+            if not threads[t].is_alive():
                 if threads[t].exitcode == 1:
                     sys.exit(threads[t].exc_traceback)
                 else:
