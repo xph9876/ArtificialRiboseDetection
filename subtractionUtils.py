@@ -15,6 +15,7 @@ def check_read(s, pattern):
 def find_reads_name(nd, pattern, fr, names):
     captured = False
     for l in fr:
+        l = l.rstrip('\n')
         if captured:
             # check if a da-tailing self ligation
             if check_read(l, pattern):
@@ -22,7 +23,7 @@ def find_reads_name(nd, pattern, fr, names):
             captured = False
         # search name
         elif l[0] == '@':
-            name = l[1:].split(' ')[0]
+            name = l[1:].rstrip('\n').split(' ')[0]
             if name in nd:
                 captured = True
 
@@ -32,14 +33,16 @@ def count_da(names, pattern, fr):
     da_ribo = 0
     captured = False
     for l in fr:
+        l = l.rstrip('\n')
         if captured:
+            # print(l, pattern, check_read(l, pattern))
             # check if a da-tailing self ligation
             if check_read(l, pattern):
                 da_ribo += 1
             captured = False
         # search name
         elif l[0] == '@':
-            name = l[1:].split(' ')[0]
+            name = l[1:].rstrip('\n').split(' ')[0]
             if name in names:
                 captured = True
     return da_ribo
