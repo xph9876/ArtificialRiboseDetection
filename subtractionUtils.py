@@ -1,175 +1,142 @@
-import subprocess
-import os
+import numpy as np
 import re
 
-# check read if started with da
-def check_read(s, pattern):
-    # ribose start from 11th pos
-    if re.match(pattern, s[11:]):
-        return True
-    else:
-        return False
+# check read if started with da pattern
+def match_da_pattern(s, pattern, d):
+    return re.match(pattern, s[d:]) != None
 
 
-# get reads from a list and raw fastq file
-def find_reads_name(nd, pattern, fr, names):
-    captured = False
-    for l in fr:
-        l = l.rstrip('\n')
-        if captured:
-            # check if a da-tailing self ligation
-            if check_read(l, pattern):
-                names[name + nd[name]] = 1
-            captured = False
-        # search name
-        elif l[0] == '@':
-            name = l[1:].rstrip('\n').split(' ')[0]
-            if name in nd:
-                captured = True
+# update noda with the new line
+def update_noda(noda_out, noda, chrom, loc, st, specials, enzymes):
+    is_noda = False
+    for e in enzymes:
+        if (loc, st) in noda[e][chrom]:
+            if not is_noda:
+                is_noda = True
+            # update noda
+            noda_out['All'][e] += 1
+            if chrom in specials:
+                noda_out[chrom][e] += 1
+            else:
+                noda_out['Nuc'][e] += 1
+    # update all enzymes combined
+    if is_noda:
+        noda_out['All']['all'] += 1
+        if chrom in specials:
+            noda_out[chrom]['all'] += 1
+        else:
+            noda_out['Nuc']['all'] += 1
+    return is_noda
 
 
-# get reads from a dict and raw fastq file
-def count_da(names, pattern, fr):
-    da_ribo = 0
-    captured = False
-    for l in fr:
-        l = l.rstrip('\n')
-        if captured:
-            # print(l, pattern, check_read(l, pattern))
-            # check if a da-tailing self ligation
-            if check_read(l, pattern):
-                da_ribo += 1
-            captured = False
-        # search name
-        elif l[0] == '@':
-            name = l[1:].rstrip('\n').split(' ')[0]
-            if name in names:
-                captured = True
-    return da_ribo
+# update da with the new line
+def update_da(da_out, da, chrom, loc, read_name, st, specials, enzymes):
+    is_da = False
+    for e in enzymes:
+        if (loc, st) in da[e][chrom]:
+            if not is_da:
+                is_da = True
+            # update da
+            da_out['All'][e].add(read_name)
+            if chrom in specials:
+                da_out[chrom][e].add(read_name)
+            else:
+                da_out['Nuc'][e].add(read_name)
+    # update all enzymes combined
+    if is_da:
+        da_out['All']['all'].add(read_name)
+        if chrom in specials:
+            da_out[chrom]['all'].add(read_name)
+        else:
+            da_out['Nuc']['all'].add(read_name)
+    return is_da
+    
 
-
-# total
-def calc_total(data, fs, folder, spec_seqs):
-    # get total number
-    # special seqs
-    for sseq in spec_seqs:
-        lines = subprocess.Popen(['grep', sseq, '-w', folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
-        total_m = int(subprocess.run(['wc', '-l'], stdin=lines.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
-        data[fs]['total']['total_'+sseq] = total_m
-    # nuclear
-    total = int(subprocess.run(['wc', '-l', folder+'/'+fs + '.bed'], stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split(' ')[0])
-    total_n = total - sum([data[fs]['total']['total_'+sseq] for sseq in spec_seqs])
-    data[fs]['total']['total'] = total
-    data[fs]['total']['total_n'] = total_n
-
-
-# no da-tailing
-def calc_noda(data, fs, species, res, folder, spec_seqs):
-    # noda, use bedtools intersect and then count lines
-    noda = data[fs]['noda']
-    noda_n = data[fs]['noda_n']
-    for enzyme in res:
-        inter = subprocess.Popen(['bedtools', 'intersect', '-a', folder+'/'+fs + '.bed', '-b', folder+'/'+'{}_{}_noda.bed'.format(species, enzyme),'-s', '-nonamecheck'],stdout=subprocess.PIPE)
-        noda[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
-        # noda, split special
-        for sseq in spec_seqs:
-            noda_m = data[fs]['noda_'+sseq]
-            chrm = subprocess.Popen(['grep', sseq, '-w', folder+'/'+fs + '.bed'], stdout=subprocess.PIPE)
-            inter_m = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_noda.bed'.format(species, enzyme), '-s', '-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
-            noda_m[enzyme] = int(subprocess.run(['wc', '-l'], stdin=inter_m.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8'))
-        # nuclear seqs
-        noda_n[enzyme] = noda[enzyme] - sum([data[fs]['noda_'+sseq][enzyme] for sseq in spec_seqs])
-    # total noda
-    noda['total'] = sum([ noda[i] for i in res])
-    for sseq in spec_seqs:
-        noda_m = data[fs]['noda_'+sseq]
-        noda_m['total'] = sum([noda_m[i] for i in res])
-    noda_n['total'] = sum([noda_n[i] for i in res])
-
-
-# da-tailing
-def calc_da(data, fs, species, res, residue_da, rawreads, folder, spec_seqs):
-    # da
-    da = data[fs]['da']
-    da_n = data[fs]['da_n']
-    for enzyme in res:
-        # get read names for da
-        inter = subprocess.Popen(['bedtools', 'intersect', '-a', folder+'/'+fs + '.bed', '-b', folder+'/'+'{}_{}_da.bed'.format(species, enzyme), '-s','-nonamecheck'],stdout=subprocess.PIPE)
-        name_l= subprocess.run(['cut', '-f', '4'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split('\n')
-        names = {}
-        # remove adapter information
-        for i in range(len(name_l)):
-            names[name_l[i].split('_')[0]] = 1
-        # check data
-        with open(rawreads + '/{}.fq'.format(fs), 'r') as fr:
-            da[enzyme] = count_da(names, residue_da[enzyme], fr)
-        # da, mitochondria
-        for sseq in spec_seqs:
-            da_m = data[fs]['da_'+sseq]
-            chrm = subprocess.Popen(['grep', sseq, '-w', folder+'/'+ fs + '.bed'], stdout=subprocess.PIPE)
-            inter = subprocess.Popen(['bedtools', 'intersect', '-a', '-', '-b', folder+'/'+'{}_{}_da.bed'.format(species, enzyme), '-s','-nonamecheck'],stdin=chrm.stdout, stdout=subprocess.PIPE)
-            name_l= subprocess.run(['cut', '-f', '4'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split('\n')
-            # remove adapter information
-            names = {}
-            for i in range(len(name_l)):
-                names[name_l[i].split('_')[0]] = 1
-            # check data
-            with open(rawreads + '/{}.fq'.format(fs), 'r') as fr:
-                fr.seek(0)
-                da_m[enzyme] = count_da(names, residue_da[enzyme], fr)
-        da_n[enzyme] = da[enzyme] - sum([data[fs]['da_'+sseq][enzyme] for sseq in spec_seqs])
-    # total da
-    da['total'] = sum([da[i] for i in res])
-    for sseq in spec_seqs:
-        da_m = data[fs]['da_'+sseq]
-        da_m['total'] = sum([da_m[i] for i in res])
-    da_n['total'] = sum([da_n[i] for i in res])
-
-
-# subtract
-def subtract(fs, species, res, residue_da, raw_reads, folder, outfolder, qLock):
-    # reads to cut
-    name_to_remove = {}
-    for enzyme in res:
-        # get read names for da
-        inter = subprocess.Popen(['bedtools', 'intersect', '-a', folder+'/'+fs+'.bed', '-b', folder+'/{}_{}_da.bed'.format(species, enzyme), '-s','-nonamecheck'],stdout=subprocess.PIPE)
-        names= subprocess.run(['cut', '-f', '4'], stdin=inter.stdout, stdout=subprocess.PIPE).stdout.decode(encoding='utf-8').split('\n')
-
-        # remove adapter information
-        nd = {}
-        for i in names:
-            if i == '':
+# analyze a single library
+def analyze(fs, libinfo, residue, da, noda, bed_folder, fq_folder, d, specials, subtract):
+    # extract information
+    species, enzymes = libinfo[fs]
+    # initialization
+    total = {x:0 for x in specials + ['All', 'Nuc']}
+    noda_out = {x:{y:0 for y in enzymes + ['all']} for x in specials + ['All', 'Nuc']}
+    da_out = {x:{y:set() for y in enzymes + ['all']} for x in specials + ['All', 'Nuc']}
+    if subtract:
+        outbed = []
+        da_cache = {}
+        fw = open(f'{subtract}/{fs}.bed', 'w')
+    # go through bed file to check noda and total lines
+    with open(f'{bed_folder}/{fs}.bed', 'r') as fr:
+        for l in fr:
+            ws = l.rstrip('\n').split('\t')
+            if len(ws) < 6:
                 continue
-            a,b = i.split('_')
-            nd[a] = '_' + b
-
-        # check data
-        with open(raw_reads + '/{}.fq'.format(fs), 'r') as fr:
-            find_reads_name(nd, residue_da[enzyme], fr, name_to_remove)
-
-    # cut noda
-    comm = ['cat']
-    name = folder+'/{}'.format(species)
-    for enzyme in res:
-        comm += [folder+'/{}_{}_noda.bed'.format(species, enzyme)]
-        name += '_{}'.format(enzyme)
-    name += '.bed'
-    # generate union of noda files
-    if not os.path.exists(name):
-        qLock.acquire()
-        print('Generate union of RE cut site!')
-        print('Species: {}\t'.format(species), 'RES: {}'.format(', '.join(res)))
-        with open(name,'wb') as nodaw:
-            noda = subprocess.Popen(comm, stdout=nodaw)
-        qLock.release()
-    # subtract noda
-    cache_file_name = '.noda_subed_{}.bed'.format(fs)
-    with open(cache_file_name, 'w+') as cachew, open(outfolder+'/{}_subtracted.bed'.format(fs), 'w') as fw:
-        noda_subed = subprocess.run(['bedtools', 'subtract', '-a', folder+'/'+fs+'.bed', '-b', name, '-s','-nonamecheck'], stdout=cachew)
-        cachew.seek(0)
-        for l in cachew:
-            if not l.split('\t')[3] in name_to_remove:
-                fw.write(l)
-    # remove cache
-    os.remove(cache_file_name)
-
+            # get info
+            loc = int(ws[1])
+            chrom = ws[0]
+            st = ws[5]
+            read_name = ws[3].split('_')[0]
+            # update total
+            total['All'] += 1
+            if chrom in specials:
+                total[chrom] += 1
+            else:
+                total['Nuc'] += 1
+            # update noda
+            is_noda = update_noda(noda_out, noda, chrom, loc, st, specials, enzymes)
+            # update da
+            is_da = update_da(da_out, da, chrom, loc, read_name, st, specials, enzymes)
+            # append to output if subtracted files are needed
+            if not subtract:
+                continue
+            if not is_noda and not is_da:
+                outbed.append(ws)
+            elif not is_noda:
+                da_cache[read_name] = ws
+    # go through fastq file to confirm da status
+    final_da_out = {x:{y:0 for y in enzymes + ['all']} for x in specials + ['All', 'Nuc']}
+    with open(f'{fq_folder}/{fs}.fq', 'r') as fr:
+        i = -1
+        for l in fr:
+            i += 1
+            # check header
+            if not i % 4:
+                read_name = l[1:].rstrip('\n').split(' ')[0]
+                if read_name not in da_cache:
+                    captured = False
+                else:
+                    captured = True
+            # check reads
+            elif i % 4 == 1:
+                if not captured:
+                    continue
+                is_da = False
+                for chrom, v in da_out.items():
+                    is_da_in_chrom = False
+                    for e in enzymes:
+                        reads = v[e]
+                        if read_name not in reads:
+                            continue
+                        # is dA tailing
+                        if match_da_pattern(l, residue[e], d):
+                            is_da_in_chrom = True
+                            is_da = True
+                            final_da_out[chrom][e] += 1
+                    if is_da_in_chrom:
+                        final_da_out[chrom]['all'] += 1
+                if not is_da and subtract != None:
+                    outbed.append(da_cache[read_name])
+    # output bed
+    if subtract:
+        outbed.sort()
+        for l in outbed:
+            fw.write('\t'.join([str(x) for x in l]) + '\n')
+        fw.close()
+    # calculate final output
+    out = {x:{y:0 for y in enzymes + ['all']} for x in specials + ['All', 'Nuc']}
+    for chrom, v in noda_out.items():
+        for e in v.keys():
+            if not total[chrom]:
+                out[chrom][e] = (np.nan, np.nan)
+            else:
+                out[chrom][e] = (noda_out[chrom][e]/total[chrom], final_da_out[chrom][e]/total[chrom])
+    return out

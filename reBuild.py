@@ -1,20 +1,19 @@
 import re
 
-def re_build(pattern, fr, base):
-    # find length of find pattern
+
+# find lenth of pattern
+def determine_length(pattern):
     lenc = 0
     i = 0
     skip = False
     while i< len(pattern):
         if pattern[i] == '[':
             lenc += 1
-            skip=True
+            skip = True
             i += 1
-            continue
         elif pattern[i] == ']':
             skip = False
             i += 1
-            continue
         elif pattern[i] == '{':
             i += 1
             num = ''
@@ -23,33 +22,45 @@ def re_build(pattern, fr, base):
                 i += 1
             lenc += (int(num)-1)
             i += 1
-            continue
         elif skip:
             i += 1
-            continue
         else:
             lenc += 1
             i += 1
     lenc -= 1
+    return lenc
+ 
+
+def re_build(patterns, enzymes, fr):
+    # find max pattern length as cache
+    lengths = {x:determine_length(patterns[x]) for x in enzymes}
+    lenc = max(lengths.values())
 
     # find da site and noda site
-    with open(base + '_da.bed', 'w') as da, open(base + '_noda.bed', 'w') as noda:
-        for l in fr:
-            l = l.rstrip('\n')
-            if l== '':
-                continue
-            elif l[0] == '>':
-                chrom = l[1:]
-                cache = ''
-                pos = 0
-            else:
-                l = cache + l.upper()
+    da = {x:{} for x in enzymes}
+    noda = {x:{} for x in enzymes}
+    for l in fr:
+        l = l.rstrip('\n')
+        if l[0] == '>':
+            chrom = l[1:]
+            cache = ''
+            pos = 0
+            assert chrom not in da, f'Duplicate chromosome {chrom} found in fasta file'
+            for e in enzymes:
+                da[e][chrom] = set()
+                noda[e][chrom] = set()
+        else:
+            l = cache + l.upper()
+            for e in enzymes:
+                pattern = patterns[e]
                 matches = re.finditer(pattern,l)
                 for m in matches:
-                    mid = int(pos + (m.start() + m.end())/2)
-                    noda.write('\t'.join([chrom, str(mid-1), str(mid), '.', '.', '+']) + '\n')
-                    noda.write('\t'.join([chrom, str(mid), str(mid+1), '.', '.', '-']) + '\n')
-                    da.write('\t'.join([chrom, str(mid), str(mid+1), '.', '.', '+']) + '\n')
-                    da.write('\t'.join([chrom, str(mid-1), str(mid), '.', '.', '-']) + '\n')
-                cache = l[-lenc:]
-                pos = pos + len(l) -lenc
+                    mid = pos + (m.start() + m.end())//2
+                    noda[e][chrom].add((mid-1, '+'))
+                    noda[e][chrom].add((mid, '-'))
+                    da[e][chrom].add((mid-1, '-'))
+                    da[e][chrom].add((mid, '+'))
+            cache = l[-lenc:]
+            pos = pos + len(l) -lenc
+    
+    return noda, da

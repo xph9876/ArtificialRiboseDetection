@@ -5,6 +5,30 @@ import os
 from collections import defaultdict
 from reBuild import re_build
 
+
+# merge noda and da for multiple REs
+# out: data[chrom] = [(loc, strand, enzyme), ... sorted]
+def merge_cuts(data):
+    res = {}
+    for enzyme, d in data.items():
+        for chrom, locs in d.items():
+            if chrom not in res:
+                res[chrom] = []
+            for l in locs:
+                res[chrom].append((l[0], l[1], enzyme))
+    
+    out = {k:{} for k in res.keys()}
+    for k in res.keys():
+        data = sorted(res[k])
+        cache = None
+        for d in data:
+            if (d[0], d[1]) == cache:
+                continue
+            cache = (d[0], d[1])
+            out[k].append(d)
+    return out
+
+
 # A part of calculate percentage of ribos incorporated in restriction enzyme cut site
 # TODO: 1. get all restriction enzyme used by libaries
       # 2. generate cuting pattern with dA-tailing case
@@ -53,20 +77,13 @@ def check_res(lib, re_list, folder, genome_folder):
             pattern[ws[0]] = ws[1]
             residue_da[ws[0]] = residue
 
-    # check whether exist da and noda
-    for sp, v in re_all.items():
-        for enzyme in v:
-            if not (os.path.exists(folder + '/' + '_'.join([sp, enzyme, 'noda.bed'])) and \
-                    os.path.exists(folder + '/' + '_'.join([sp, enzyme, 'da.bed']))):
-                print('Cannot find da/noda bed file for {}_{} in folder {}, generate it!'.format(sp, enzyme, folder))
-                if not genome_folder:
-                    sys.exit('[ERROR]Cannot find genome folder, please provide it in parameters')
-                try:
-                    with open(genome_folder + '/{}.fa'.format(sp)) as genome:
-                        re_build(pattern[enzyme], genome, folder + '/{}_{}'.format(sp,enzyme))
-                except IOError:
-                    sys.exit('[ERROR]Cannot open genome {}.fa at folder{}!'.format(sp, genome_folder))
+    # generate noda and da locations
+    noda = {}
+    da = {}
+    for sp, enzymes in re_all.items():
+        with open(f'{genome_folder}/{sp}.fa') as genome:
+            noda, da = re_build(pattern, enzymes, genome)
 
-    return(libinfo, re_all, residue_da)
+    return libinfo, re_all, residue_da, da, noda
 
 
