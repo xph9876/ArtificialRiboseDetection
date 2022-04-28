@@ -1,6 +1,5 @@
 import sys
 import subprocess
-import re
 import os
 from collections import defaultdict
 from reBuild import re_build

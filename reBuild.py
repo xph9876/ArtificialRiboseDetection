@@ -1,4 +1,4 @@
-import re
+import regex as re
 
 
 # find lenth of pattern
@@ -53,7 +53,7 @@ def re_build(patterns, enzymes, fr):
             l = cache + l.upper()
             for e in enzymes:
                 pattern = patterns[e]
-                matches = re.finditer(pattern,l)
+                matches = re.finditer(pattern,l, overlapped=True)
                 for m in matches:
                     mid = pos + (m.start() + m.end())//2
                     noda[e][chrom].add((mid-1, '+'))
