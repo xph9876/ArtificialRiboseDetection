@@ -66,7 +66,6 @@ def main():
     # re_all[sp] = [REs]
     # residue[re] = ['TNNN']
     libinfo, re_all, residue, da, noda = check_res(args.list, args.RElist, args.bed, args.genome)
-    print(da, noda)
 
     print('Data read!')
     print('Libraries\tREs')
