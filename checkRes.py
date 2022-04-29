@@ -1,6 +1,3 @@
-import sys
-import subprocess
-import os
 from collections import defaultdict
 from reBuild import re_build
 

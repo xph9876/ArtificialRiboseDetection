@@ -82,8 +82,12 @@ def main():
     # analyze(fs, libinfo, residue, da, noda, bed_folder, fq_folder, d, specials, subtract):
     row = 1
     for lib in libinfo.keys():
-        out = analyze(lib, libinfo, residue, da, noda, args.bed, \
-            args.raw_reads, args.d, args.special, args.subtracted_output)
+        try:
+            out = analyze(lib, libinfo, residue, da, noda, args.bed, \
+                args.raw_reads, args.d, args.special, args.subtracted_output)
+        except FileNotFoundError:
+            print(f'[Warning] Cannot analysis {lib}, file not found!')
+            continue
         # output to workbook
         write_workbook(lib, out, worksheets, re_all, row, formatter)
         row += 1
