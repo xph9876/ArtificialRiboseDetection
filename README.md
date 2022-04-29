@@ -1,5 +1,5 @@
 # ArtificialRiboseDetection
-Detect the artificial rNMPs captured by _ribose-seq_ and Ribose-Map.
+Detect the artificial rNMPs located at restriction enzyme (RE) cut site for ribose-seq.
 
 ## Introduction
 Some fragments after restriction enzyme digestion don't contain the rNMP. However, they still remains after the whole _ribose-seq_ and Ribose-Map protocol due the imperfect digestion of T5 nuclease. That makes up a part of background noise. Some of them may have an additional dAMP at the end because of the dA-tailing step. 
@@ -9,9 +9,9 @@ This software is designed for background noise detection and subtraction if need
 Balachander, S., Gombolay, A. L., Yang, T., Xu, P., Newnam, G., Keskin, H., El-Sayed, W., Bryksin, A. V., Tao, S., Bowen, N. E., Schinazi, R. F., Kim, B., Koh, K. D., Vannberg, F. O., & Storici, F. (2020). Ribonucleotide incorporation in yeast genomic DNA shows preference for cytosine and guanosine preceded by deoxyadenosine. _Nature communications, 11_(1), 2447. https://doi.org/10.1038/s41467-020-16152-5
 
 ## Dependency
-Following softwares are needed:
-- bedtools
-- Linux build-in __grep__ and __wc__
+Following python3 packages are needed:
+- regex
+- xlsxwriter
 
 This software only requires Python3 standard libraries.
 
@@ -28,8 +28,7 @@ Inputs:
 
 Parameters:
 1. __-o O__                  Output file name.
-1. __--subtracted_output SUBTRACTED_OUTPUT__                     Folder to output subtracted BED files, default = same to __bed__
-1. __--ns__                  Do not do subtraction, calculation only.
+1. __--subtracted_output SUBTRACTED_OUTPUT__                     Folder to output subtracted BED files. No subtraction by default.
 1.  __--bed BED__             Folder of BED files, default = current folder.
 1.  __--special S [ S ...] __
                         Name of special chromosomes in genome file, which is calculated separately and excluded from nuclear DNA. default = [chrM]
@@ -39,7 +38,6 @@ Parameters:
     1. Cut after which base.
     Please find __res_all.list__ as an example.
 1.  __--genome GENOME__       Folder of genome, provide if needed.
-1.  __--threads THREADS__     Number of threads
 
 ## License
 This software is under GNU GPL v3.0 license.
